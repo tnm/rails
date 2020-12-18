@@ -1,0 +1,258 @@
+From 214ff0876b4c75cce0523c78eaa784aac9ab9c15 Mon Sep 17 00:00:00 2001
+From: tnm <ted@ted.io>
+Date: Fri, 18 Dec 2020 00:06:11 -0800
+Subject: [PATCH] Add support for decades in distance_of_time_in_words
+
+---
+ ...decades-in-distance_of_time_in_words.patch | 146 ++++++++++++++++++
+ .../lib/action_view/helpers/date_helper.rb    |  17 +-
+ actionview/lib/action_view/locale/en.yml      |   3 +
+ actionview/test/template/date_helper_test.rb  |  27 ++++
+ 4 files changed, 188 insertions(+), 5 deletions(-)
+ create mode 100644 actionview/0001-Add-support-for-decades-in-distance_of_time_in_words.patch
+
+diff --git a/actionview/0001-Add-support-for-decades-in-distance_of_time_in_words.patch b/actionview/0001-Add-support-for-decades-in-distance_of_time_in_words.patch
+new file mode 100644
+index 0000000000..864f7840fc
+--- /dev/null
++++ b/actionview/0001-Add-support-for-decades-in-distance_of_time_in_words.patch
+@@ -0,0 +1,146 @@
++From 58289c9c8a6908122a340bb220f1b476a58abe68 Mon Sep 17 00:00:00 2001
++From: tnm <ted@ted.io>
++Date: Fri, 18 Dec 2020 00:06:11 -0800
++Subject: [PATCH] Add support for decades in distance_of_time_in_words
++
++---
++ .../lib/action_view/helpers/date_helper.rb    | 17 +++--
++ actionview/lib/action_view/locale/en.yml      |  3 +
++ actionview/test/template/date_helper_test.rb  | 69 +++++++++++++------
++ 3 files changed, 63 insertions(+), 26 deletions(-)
++
++diff --git a/actionview/lib/action_view/helpers/date_helper.rb b/actionview/lib/action_view/helpers/date_helper.rb
++index 7334529602..45dce8dfd0 100644
++--- a/actionview/lib/action_view/helpers/date_helper.rb
+++++ b/actionview/lib/action_view/helpers/date_helper.rb
++@@ -146,12 +146,19 @@ def distance_of_time_in_words(from_time, to_time = 0, options = {})
++             minutes_with_offset = distance_in_minutes - minute_offset_for_leap_year
++             remainder                   = (minutes_with_offset % MINUTES_IN_YEAR)
++             distance_in_years           = (minutes_with_offset.div MINUTES_IN_YEAR)
++-            if remainder < MINUTES_IN_QUARTER_YEAR
++-              locale.t(:about_x_years,  count: distance_in_years)
++-            elsif remainder < MINUTES_IN_THREE_QUARTERS_YEAR
++-              locale.t(:over_x_years,   count: distance_in_years)
+++
+++            # 365 days up to 100 years
+++            if minutes_with_offset.between? 525600, 52560000
+++              if remainder < MINUTES_IN_QUARTER_YEAR
+++                locale.t(:about_x_years,  count: distance_in_years)
+++              elsif remainder < MINUTES_IN_THREE_QUARTERS_YEAR
+++                locale.t(:over_x_years,   count: distance_in_years)
+++              else
+++                locale.t(:almost_x_years, count: distance_in_years + 1)
+++              end
++             else
++-              locale.t(:almost_x_years, count: distance_in_years + 1)
+++              # Over 100 years
+++              locale.t :over_x_decades, count: (distance_in_years.div 10)
++             end
++           end
++         end
++diff --git a/actionview/lib/action_view/locale/en.yml b/actionview/lib/action_view/locale/en.yml
++index 8a56f147b8..21522b28ea 100644
++--- a/actionview/lib/action_view/locale/en.yml
+++++ b/actionview/lib/action_view/locale/en.yml
++@@ -36,6 +36,9 @@
++       almost_x_years:
++         one:   "almost 1 year"
++         other: "almost %{count} years"
+++      over_x_decades:
+++        one:   "over 1 decade"
+++        other: "over %{count} decades"
++     prompts:
++       year:   "Year"
++       month:  "Month"
++diff --git a/actionview/test/template/date_helper_test.rb b/actionview/test/template/date_helper_test.rb
++index ad9027b2c2..4b60850dbe 100644
++--- a/actionview/test/template/date_helper_test.rb
+++++ b/actionview/test/template/date_helper_test.rb
++@@ -100,27 +100,33 @@ def assert_distance_of_time_in_words(from, to = nil)
++     assert_equal "12 months", distance_of_time_in_words(from, to + 1.years - 31.seconds)
++ 
++     # >= 365 days
++-    assert_equal "about 1 year",    distance_of_time_in_words(from, to + 1.years - 30.seconds)
++-    assert_equal "about 1 year",    distance_of_time_in_words(from, to + 1.years + 3.months - 1.day)
++-    assert_equal "over 1 year",     distance_of_time_in_words(from, to + 1.years + 6.months)
++-
++-    assert_equal "almost 2 years",  distance_of_time_in_words(from, to + 2.years - 3.months + 1.day)
++-    assert_equal "about 2 years",   distance_of_time_in_words(from, to + 2.years + 3.months - 1.day)
++-    assert_equal "over 2 years",    distance_of_time_in_words(from, to + 2.years + 3.months + 1.day)
++-    assert_equal "over 2 years",    distance_of_time_in_words(from, to + 2.years + 9.months - 1.day)
++-    assert_equal "almost 3 years",  distance_of_time_in_words(from, to + 2.years + 9.months + 1.day)
++-
++-    assert_equal "almost 5 years",  distance_of_time_in_words(from, to + 5.years - 3.months + 1.day)
++-    assert_equal "about 5 years",   distance_of_time_in_words(from, to + 5.years + 3.months - 1.day)
++-    assert_equal "over 5 years",    distance_of_time_in_words(from, to + 5.years + 3.months + 1.day)
++-    assert_equal "over 5 years",    distance_of_time_in_words(from, to + 5.years + 9.months - 1.day)
++-    assert_equal "almost 6 years",  distance_of_time_in_words(from, to + 5.years + 9.months + 1.day)
++-
++-    assert_equal "almost 10 years", distance_of_time_in_words(from, to + 10.years - 3.months + 1.day)
++-    assert_equal "about 10 years",  distance_of_time_in_words(from, to + 10.years + 3.months - 1.day)
++-    assert_equal "over 10 years",   distance_of_time_in_words(from, to + 10.years + 3.months + 1.day)
++-    assert_equal "over 10 years",   distance_of_time_in_words(from, to + 10.years + 9.months - 1.day)
++-    assert_equal "almost 11 years", distance_of_time_in_words(from, to + 10.years + 9.months + 1.day)
+++    assert_equal "about 1 year",     distance_of_time_in_words(from, to + 1.years - 30.seconds)
+++    assert_equal "about 1 year",     distance_of_time_in_words(from, to + 1.years + 3.months - 1.day)
+++    assert_equal "over 1 year",      distance_of_time_in_words(from, to + 1.years + 6.months)
+++
+++    assert_equal "almost 2 years",   distance_of_time_in_words(from, to + 2.years - 3.months + 1.day)
+++    assert_equal "about 2 years",    distance_of_time_in_words(from, to + 2.years + 3.months - 1.day)
+++    assert_equal "over 2 years",     distance_of_time_in_words(from, to + 2.years + 3.months + 1.day)
+++    assert_equal "over 2 years",     distance_of_time_in_words(from, to + 2.years + 9.months - 1.day)
+++    assert_equal "almost 3 years",   distance_of_time_in_words(from, to + 2.years + 9.months + 1.day)
+++
+++    assert_equal "almost 5 years",   distance_of_time_in_words(from, to + 5.years - 3.months + 1.day)
+++    assert_equal "about 5 years",    distance_of_time_in_words(from, to + 5.years + 3.months - 1.day)
+++    assert_equal "over 5 years",     distance_of_time_in_words(from, to + 5.years + 3.months + 1.day)
+++    assert_equal "over 5 years",     distance_of_time_in_words(from, to + 5.years + 9.months - 1.day)
+++    assert_equal "almost 6 years",   distance_of_time_in_words(from, to + 5.years + 9.months + 1.day)
+++
+++    assert_equal "almost 10 years",  distance_of_time_in_words(from, to + 10.years - 3.months + 1.day)
+++    assert_equal "about 10 years",   distance_of_time_in_words(from, to + 10.years + 3.months - 1.day)
+++    assert_equal "over 10 years",    distance_of_time_in_words(from, to + 10.years + 3.months + 1.day)
+++    assert_equal "over 10 years",    distance_of_time_in_words(from, to + 10.years + 9.months - 1.day)
+++    assert_equal "almost 11 years",  distance_of_time_in_words(from, to + 10.years + 9.months + 1.day)
+++    assert_equal "over 15 years",    distance_of_time_in_words(from, to + 15.years + 9.months - 1.day)
+++    assert_equal "over 99 years",    distance_of_time_in_words(from, to + 99.years + 9.months - 1.day)
+++
+++    # >= 100 years
+++    assert_equal "over 10 decades", distance_of_time_in_words(from, to + 100.years + 9.months + 1.day)
+++    assert_equal "over 50 decades", distance_of_time_in_words(from, to + 500.years + 9.months + 1.day)
++ 
++     # test to < from
++     assert_equal "about 4 hours", distance_of_time_in_words(from + 4.hours, to)
++@@ -182,8 +188,29 @@ def test_distance_in_words_with_dates
++ 
++     start_date = Date.new 1982, 12, 3
++     end_date = Date.new 2010, 11, 30
+++
++     assert_equal("almost 28 years", distance_of_time_in_words(start_date, end_date))
++     assert_equal("almost 28 years", distance_of_time_in_words(end_date, start_date))
+++
+++    start_date = Date.new 1972, 12, 3
+++    end_date = Date.new 2007, 12, 4
+++
+++    assert_equal("about 35 years", distance_of_time_in_words(start_date, end_date))
+++
+++    start_date = Date.new 1910, 12, 3
+++    end_date = Date.new 2010, 12, 2
+++
+++    assert_equal("almost 100 years", distance_of_time_in_words(start_date, end_date))
+++
+++    start_date = Date.new 1910, 12, 3
+++    end_date = Date.new 2010, 12, 4
+++
+++    assert_equal("over 10 decades", distance_of_time_in_words(start_date, end_date))
+++
+++    start_date = Date.new 1, 12, 3
+++    end_date = Date.new 2007, 12, 4
+++
+++    assert_equal("over 200 decades", distance_of_time_in_words(start_date, end_date))
++   end
++ 
++   def test_distance_in_words_with_integers
++-- 
++2.24.3 (Apple Git-128)
++
+diff --git a/actionview/lib/action_view/helpers/date_helper.rb b/actionview/lib/action_view/helpers/date_helper.rb
+index 7334529602..45dce8dfd0 100644
+--- a/actionview/lib/action_view/helpers/date_helper.rb
++++ b/actionview/lib/action_view/helpers/date_helper.rb
+@@ -146,12 +146,19 @@ def distance_of_time_in_words(from_time, to_time = 0, options = {})
+             minutes_with_offset = distance_in_minutes - minute_offset_for_leap_year
+             remainder                   = (minutes_with_offset % MINUTES_IN_YEAR)
+             distance_in_years           = (minutes_with_offset.div MINUTES_IN_YEAR)
+-            if remainder < MINUTES_IN_QUARTER_YEAR
+-              locale.t(:about_x_years,  count: distance_in_years)
+-            elsif remainder < MINUTES_IN_THREE_QUARTERS_YEAR
+-              locale.t(:over_x_years,   count: distance_in_years)
++
++            # 365 days up to 100 years
++            if minutes_with_offset.between? 525600, 52560000
++              if remainder < MINUTES_IN_QUARTER_YEAR
++                locale.t(:about_x_years,  count: distance_in_years)
++              elsif remainder < MINUTES_IN_THREE_QUARTERS_YEAR
++                locale.t(:over_x_years,   count: distance_in_years)
++              else
++                locale.t(:almost_x_years, count: distance_in_years + 1)
++              end
+             else
+-              locale.t(:almost_x_years, count: distance_in_years + 1)
++              # Over 100 years
++              locale.t :over_x_decades, count: (distance_in_years.div 10)
+             end
+           end
+         end
+diff --git a/actionview/lib/action_view/locale/en.yml b/actionview/lib/action_view/locale/en.yml
+index 8a56f147b8..21522b28ea 100644
+--- a/actionview/lib/action_view/locale/en.yml
++++ b/actionview/lib/action_view/locale/en.yml
+@@ -36,6 +36,9 @@
+       almost_x_years:
+         one:   "almost 1 year"
+         other: "almost %{count} years"
++      over_x_decades:
++        one:   "over 1 decade"
++        other: "over %{count} decades"
+     prompts:
+       year:   "Year"
+       month:  "Month"
+diff --git a/actionview/test/template/date_helper_test.rb b/actionview/test/template/date_helper_test.rb
+index ad9027b2c2..8209e3ebc5 100644
+--- a/actionview/test/template/date_helper_test.rb
++++ b/actionview/test/template/date_helper_test.rb
+@@ -121,6 +121,12 @@ def assert_distance_of_time_in_words(from, to = nil)
+     assert_equal "over 10 years",   distance_of_time_in_words(from, to + 10.years + 3.months + 1.day)
+     assert_equal "over 10 years",   distance_of_time_in_words(from, to + 10.years + 9.months - 1.day)
+     assert_equal "almost 11 years", distance_of_time_in_words(from, to + 10.years + 9.months + 1.day)
++    assert_equal "over 15 years",   distance_of_time_in_words(from, to + 15.years + 9.months - 1.day)
++    assert_equal "over 99 years",   distance_of_time_in_words(from, to + 99.years + 9.months - 1.day)
++
++    # >= 100 years
++    assert_equal "over 10 decades", distance_of_time_in_words(from, to + 100.years + 9.months + 1.day)
++    assert_equal "over 50 decades", distance_of_time_in_words(from, to + 500.years + 9.months + 1.day)
+ 
+     # test to < from
+     assert_equal "about 4 hours", distance_of_time_in_words(from + 4.hours, to)
+@@ -182,8 +188,29 @@ def test_distance_in_words_with_dates
+ 
+     start_date = Date.new 1982, 12, 3
+     end_date = Date.new 2010, 11, 30
++
+     assert_equal("almost 28 years", distance_of_time_in_words(start_date, end_date))
+     assert_equal("almost 28 years", distance_of_time_in_words(end_date, start_date))
++
++    start_date = Date.new 1972, 12, 3
++    end_date = Date.new 2007, 12, 4
++
++    assert_equal("about 35 years", distance_of_time_in_words(start_date, end_date))
++
++    start_date = Date.new 1910, 12, 3
++    end_date = Date.new 2010, 12, 2
++
++    assert_equal("almost 100 years", distance_of_time_in_words(start_date, end_date))
++
++    start_date = Date.new 1910, 12, 3
++    end_date = Date.new 2010, 12, 4
++
++    assert_equal("over 10 decades", distance_of_time_in_words(start_date, end_date))
++
++    start_date = Date.new 1, 12, 3
++    end_date = Date.new 2007, 12, 4
++
++    assert_equal("over 200 decades", distance_of_time_in_words(start_date, end_date))
+   end
+ 
+   def test_distance_in_words_with_integers
+-- 
+2.24.3 (Apple Git-128)
+

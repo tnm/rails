@@ -36,6 +36,9 @@
       almost_x_years:
         one:   "almost 1 year"
         other: "almost %{count} years"
+      over_x_decades:
+        one:   "over 1 decade"
+        other: "over %{count} decades"
     prompts:
       year:   "Year"
       month:  "Month"

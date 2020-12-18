@@ -146,12 +146,19 @@ module ActionView
             minutes_with_offset = distance_in_minutes - minute_offset_for_leap_year
             remainder                   = (minutes_with_offset % MINUTES_IN_YEAR)
             distance_in_years           = (minutes_with_offset.div MINUTES_IN_YEAR)
-            if remainder < MINUTES_IN_QUARTER_YEAR
-              locale.t(:about_x_years,  count: distance_in_years)
-            elsif remainder < MINUTES_IN_THREE_QUARTERS_YEAR
-              locale.t(:over_x_years,   count: distance_in_years)
+
+            # 365 days up to 100 years
+            if minutes_with_offset.between? 525600, 52560000
+              if remainder < MINUTES_IN_QUARTER_YEAR
+                locale.t(:about_x_years,  count: distance_in_years)
+              elsif remainder < MINUTES_IN_THREE_QUARTERS_YEAR
+                locale.t(:over_x_years,   count: distance_in_years)
+              else
+                locale.t(:almost_x_years, count: distance_in_years + 1)
+              end
             else
-              locale.t(:almost_x_years, count: distance_in_years + 1)
+              # Over 100 years
+              locale.t :over_x_decades, count: (distance_in_years.div 10)
             end
           end
         end
